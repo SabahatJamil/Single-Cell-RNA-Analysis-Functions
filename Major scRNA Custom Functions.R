@@ -187,19 +187,19 @@ trajectory_making_function <- function(seurat.obj,name,name_vector,the_factor,co
   
   for (cond in conditions){
     Idents(seurat.obj) <- seurat.obj@meta.data$condition
-    b.seu <- subset(x=seurat.obj,idents=c(cond))
-    b.seu$customclassifions <- b.seu@meta.data$the_factor
+    seurat_object <- subset(x=seurat.obj,idents=c(cond))
+    seurat_object$customclassifions <- seurat_object@meta.data$the_factor
     
-    Idents(b.seu) <- b.seu$customclassifions
-    b.seu <- subset(b.seu, idents =  name_vector)
+    Idents(seurat_object) <- seurat_object$customclassifions
+    seurat_object <- subset(seurat_object, idents =  name_vector)
     
-    b.seu <- NormalizeData(b.seu)
-    b.seu <- FindVariableFeatures(b.seu)
-    b.seu <- ScaleData(b.seu)
-    b.seu <- RunPCA(b.seu)
-    b.seu <- FindNeighbors(b.seu, dims = 1:30)
-    b.seu <- FindClusters(b.seu, resolution = 0.9)
-    b.seu <- RunUMAP(b.seu, dims = 1:30, n.neighbors = 50)
+    seurat_object <- NormalizeData(seurat_object)
+    seurat_object <- FindVariableFeatures(seurat_object)
+    seurat_object <- ScaleData(seurat_object)
+    seurat_object <- RunPCA(seurat_object)
+    seurat_object <- FindNeighbors(seurat_object, dims = 1:30)
+    seurat_object <- FindClusters(seurat_object, resolution = 0.9)
+    seurat_object <- RunUMAP(seurat_object, dims = 1:30, n.neighbors = 50)
     
     
     lapply(c("dplyr","Seurat","HGNChelper","openxlsx"), library, character.only = T)
@@ -210,13 +210,13 @@ trajectory_making_function <- function(seurat.obj,name,name_vector,the_factor,co
     gs_list = gene_sets_prepare(db_, tissue)
     
     
-    es.max = sctype_score(scRNAseqData = b.seu[["RNA"]]$scale.data, scaled = TRUE, 
+    es.max = sctype_score(scRNAseqData = seurat_object[["RNA"]]$scale.data, scaled = TRUE, 
                           gs = gs_list$gs_positive, gs2 = gs_list$gs_negative)
     
     
-    cL_resutls = do.call("rbind", lapply(unique(b.seu@meta.data$seurat_clusters), function(cl){
-      es.max.cl = sort(rowSums(es.max[ ,rownames(b.seu@meta.data[b.seu@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
-      head(data.frame(cluster = cl, type = names(es.max.cl), scores = es.max.cl, ncells = sum(b.seu@meta.data$seurat_clusters==cl)), 10)
+    cL_resutls = do.call("rbind", lapply(unique(seurat_object@meta.data$seurat_clusters), function(cl){
+      es.max.cl = sort(rowSums(es.max[ ,rownames(seurat_object@meta.data[seurat_object@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
+      head(data.frame(cluster = cl, type = names(es.max.cl), scores = es.max.cl, ncells = sum(seurat_object@meta.data$seurat_clusters==cl)), 10)
     }))
     
     sctype_scores = cL_resutls %>% group_by(cluster) %>% top_n(n = 1, wt = scores)  
@@ -227,22 +227,22 @@ trajectory_making_function <- function(seurat.obj,name,name_vector,the_factor,co
     
     
     
-    b.seu@meta.data$customclassif = ""
+    seurat_object@meta.data$customclassif = ""
     for(j in unique(sctype_scores$cluster)){
       cl_type = sctype_scores[sctype_scores$cluster==j,]; 
-      b.seu@meta.data$customclassifions[b.seu@meta.data$seurat_clusters == j] = as.character(cl_type$type[1])
+      seurat_object@meta.data$customclassifions[seurat_object@meta.data$seurat_clusters == j] = as.character(cl_type$type[1])
     }
     
-    a<- DimPlot(b.seu, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'customclassifions')
-    a1 <- DimPlot(b.seu, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'customclassifions')
+    a<- DimPlot(seurat_object, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'customclassifions')
+    a1 <- DimPlot(seurat_object, reduction = "umap", label = TRUE, repel = TRUE, group.by = 'customclassifions')
     
     
-    a1 <- DimPlot(b.seu, reduction = 'umap', group.by = 'customclassifions', label = T)
-    a2 <- DimPlot(b.seu, reduction = 'umap', group.by = 'seurat_clusters', label = T)
+    a1 <- DimPlot(seurat_object, reduction = 'umap', group.by = 'customclassifions', label = T)
+    a2 <- DimPlot(seurat_object, reduction = 'umap', group.by = 'seurat_clusters', label = T)
     a1|a2
     ggsave2(path,name,"1",cond,".png", height = 14, width = 14)
     
-    cds <- as.cell_data_set(b.seu)
+    cds <- as.cell_data_set(seurat_object)
     fData(cds)$gene_short_name <- rownames(fData(cds))
     
     
@@ -254,11 +254,11 @@ trajectory_making_function <- function(seurat.obj,name,name_vector,the_factor,co
     cds@clusters$UMAP$partitions <- reacreate.partition
     
     
-    list_cluster <- b.seu@active.ident
+    list_cluster <- seurat_object@active.ident
     cds@clusters$UMAP$clusters <- list_cluster
     
     
-    cds@int_colData@listData$reducedDims$UMAP <- b.seu@reductions$umap@cell.embeddings
+    cds@int_colData@listData$reducedDims$UMAP <- seurat_object@reductions$umap@cell.embeddings
     
     
     
